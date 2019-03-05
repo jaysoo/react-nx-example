@@ -1,0 +1,27 @@
+{
+  "npmScope": "example",
+  "implicitDependencies": {
+    "angular.json": "*",
+    "package.json": "*",
+    "tsconfig.json": "*",
+    "tslint.json": "*",
+    "nx.json": "*"
+  },
+  "projects": {
+    "react-example": {
+      "tags": []
+    },
+    "react-example-e2e": {
+      "tags": []
+    },
+    "gifs": {
+      "tags": []
+    },
+    "home": {
+      "tags": []
+    },
+    "ui": {
+      "tags": []
+    }
+  }
+}
