@@ -1,9 +1,15 @@
 import {
+  apply,
   chain,
   externalSchematic,
+  mergeWith,
+  move,
+  template,
+  url,
   Rule,
   Tree
 } from '@angular-devkit/schematics';
+import { formatFiles } from '@nrwl/schematics/src/utils/rules/format-files';
 
 export default function(schema: any): Rule {
   return chain([
@@ -16,14 +22,36 @@ export default function(schema: any): Rule {
       unitTestRunner: 'jest'
     }),
     (host: Tree) => {
-      const content = host.read(`libs/${schema.name}/tsconfig.json`);
-      const json = JSON.parse(content.toString());
-      json.compilerOptions.jsx = 'react';
-      json.include = ['**/*.ts'];
+      const tsConfig = JSON.parse(
+        host.read(`libs/${schema.name}/tsconfig.json`).toString()
+      );
+      const tsConfigSpec = JSON.parse(
+        host.read(`libs/${schema.name}/tsconfig.spec.json`).toString()
+      );
+      tsConfig.compilerOptions.jsx = 'react';
+      tsConfig.include = ['**/*.ts', '**/*.tsx'];
+      tsConfigSpec.include = ['**/*.ts', '**/*.tsx'];
       host.overwrite(
         `libs/${schema.name}/tsconfig.json`,
-        JSON.stringify(json, null, 2)
+        JSON.stringify(tsConfig, null, 2)
       );
-    }
+      host.overwrite(
+        `libs/${schema.name}/tsconfig.spec.json`,
+        JSON.stringify(tsConfigSpec, null, 2)
+      );
+    },
+    (host: Tree) => {
+      host.delete(`libs/${schema.name}/jest.config.js`);
+    },
+    mergeWith(
+      apply(url('./files'), [
+        template({
+          tmpl: '',
+          name: schema.name
+        }),
+        move(`libs/${schema.name}`)
+      ])
+    ),
+    formatFiles()
   ]);
 }

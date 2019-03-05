@@ -7,7 +7,7 @@ describe('Header', () => {
   afterEach(cleanup);
 
   test('Rendering', async () => {
-    const { container } = render(<Header/>);
+    const { container } = render(<Header>It works!</Header>);
     expect(container.innerHTML).toMatch(/It works!/);
   });
 });

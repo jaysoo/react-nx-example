@@ -82,7 +82,7 @@ Think of projects as modules that are distinct but may have dependencies on each
 
 #### `angular.json`
 
-This file contains the metadata for each project within the workspace. Even thought it is called "angular.json", it is framework-agnostic when it comes to the projects it builds. In our case, we are using the CLI to run a React app. 
+This file contains the metadata for each project within the workspace. Even though it is called "angular.json", it is framework-agnostic when it comes to the projects it builds. In our case, we are using the CLI to run a React app. 
 
 #### `nx.json`
 
@@ -97,7 +97,7 @@ The other files are likely already be familiar to you.
 * `tslint.json` - Lint configuration for TypeScript files.
 * `package.json` and `yarn.lock` - Node module dependencies for our projects.
 
-**Note:** We generate `yarn.lock` by default, but if you are using `npm` instead or `yarn`, then feel free to delete this file. 
+**Note:** We generate `yarn.lock` by default, but if you are using `npm` instead of `yarn`, then feel free to delete this file. 
 
 And that covers the structure. Next, let's see what we can do with Nx out of the box.
 
@@ -137,21 +137,7 @@ Here, I'm using the the `--dry-run` flag to **preview changes** before actually 
 
 I should see something like this.
 
-```bash
-CREATE libs/home/README.md (971 bytes)
-CREATE libs/home/tsconfig.lib.json (454 bytes)
-CREATE libs/home/tslint.json (52 bytes)
-CREATE libs/home/src/index.ts (0 bytes)
-CREATE libs/home/src/lib/.gitkeep (0 bytes)
-CREATE libs/home/tsconfig.json (123 bytes)
-CREATE jest.config.js (312 bytes)
-CREATE libs/home/tsconfig.spec.json (209 bytes)
-CREATE libs/home/jest.config.js (120 bytes)
-UPDATE angular.json (1262 bytes)
-UPDATE nx.json (238 bytes)
-UPDATE tsconfig.json (541 bytes)
-UPDATE package.json (1579 bytes)
-```
+![](./dry-run.png)
 
 Everything looks good, so let's run the same command without `--dry-run`.
 
@@ -161,7 +147,7 @@ yarn ng generate lib --name=home --framework=none --no-interactive
 
 **Note:** The **dry run** feature of the CLI is useful if you want to verify that the changes are *as intended*. This previewing is made possible because schematics in CLI do not operate on the real filesystem. Rather, they describe what transformations should applied to a virtual representation of the filesystem.
 
-Next, we also need to update the generated `libs/gifs/tsconfig.json` to allow for React's JSX syntax by adding `"jsx": "react"` to `compilerOptions`.
+Next, we also need to update the generated `libs/gifs/tsconfig.json` to allow for React's JSX syntax by adding `"jsx": "react"` to `compilerOptions` , and including `"**/*.tsx"` files.
 
 ```json
 {
@@ -202,7 +188,7 @@ And finally, let's add our feature route to the application.
 
 ### Adding Routes to the Application
 
-Let's use [React Router](https://reacttraining.com/react-router/) to handling the routing in our projects since it's the most popular routing solution.
+Let's use [React Router](https://reacttraining.com/react-router/) to handle the routing in our application.
 
 **yarn**
 
@@ -384,7 +370,7 @@ export const App = () => (
 );
 ```
 
-And in our `apps/react-example/src/environments/environment.ts` file, let's add the giphy entry.
+Then, in our `apps/react-example/src/environments/environment.ts` file, let's add the giphy entry.
 
 ```typescript
 export const environment = {
@@ -407,7 +393,7 @@ ng build react-example --configuration=production
 
 This will generate assets under `dist/apps/react-example` that can then be served statically.
 
-To recap, so far we've seen how we can:
+To recap, so far we've seen how to:
 
 * Generate a new React monorepo workspace with one application.
 * Add new feature libraries and route to them from our application.
@@ -416,7 +402,7 @@ To recap, so far we've seen how we can:
 
 You may have noticed how tedious is it to add a new feature and component. This is because after we generate the library, we have to:
 
-* Modify `tsconfig.json` to set `jsx` option.
+* Update `tsconfig.json` and `tsconfig.spec.json` to set `jsx` and `include` options.
 * Add component `.tsx` and `.scss` files.
 * Update `index.ts` file of the library.
 
@@ -424,21 +410,55 @@ What if we can codify all these steps to run automatically?
 
 This is where Nx's workspace schematics come in. They can be generated using the `yarn ng generate workspace-schematic [name]` command.
 
-For example,
+For example, to create **react-lib** and **react-component** schematics we'd run:
 
 ```bash
 yarn ng generate workspace-schematic react-lib
 yarn ng generate workspace-schematic react-component
 ```
 
-If we had these schematic for our previous GIFs example, then we could have run the following the bootstrap the feature.
+For our previous GIFs example, we could have run the following using the schematics to bootstrap everything.
 
 ```bash
 yarn workspace-schematic react-lib --name=gifs
 yarn workspace-schematic react-component --name=Gifs --project=gifs
 ```
 
-I'm not going to go over the schematics in this post since it is out of scope. However, the implementations are in the [git repo](https://github.com/jaysoo/react-nx-example/tree/master/tools).
+I'm not going to go over the schematics in this post since they are out of scope. However, here's a quick look at the react-component schematic.
+
+```typescript
+
+export default function(opts: any): Rule {
+  return (host: Tree) => { // <-- The Tree here represents the filesystem
+    // We can read files off of the Tree
+    const angularJson = JSON.parse(host.read('angular.json').toString());
+    const project = angularJson.projects[opts.project];
+    const src = project.sourceRoot;
+    const fileName = strings.dasherize(opts.name);
+    const componentName = strings.classify(opts.name);
+    const indexFile = host.read(`${src}/index.ts`);
+    
+    // We can also overwrite files in the Tree
+    host.overwrite(
+      `${src}/index.ts`,
+      `${indexFile.toString()}\nexport * from './lib/${fileName}/${fileName}';`
+    );
+
+    // Angular devkit comes with helper functions to perform common operations on the Tree 
+    const templateSource = apply(url('./files'), [
+      template({
+        tmpl: '',
+        fileName,
+        componentName
+      }),
+      move(`${src}/lib/${fileName}`)
+    ]);
+    return mergeWith(templateSource);
+  };
+}
+```
+
+For the full implementation, please refer to the [git repo](https://github.com/nrwl/react-nx-example/tree/master/tools).
 
 ## Testing and Building Only Affected Code
 
@@ -457,7 +477,7 @@ yarn workspace-schematic react-component --name=Header --project=ui
 
 ![](./terminal-output.png)
 
-We can then replace usages of `<h1>` with out new `Header` in the `Home` component.
+We can then replace usages of `<h1>` with our new `Header` in the `Home` component.
 
 e.g.
 
@@ -531,4 +551,16 @@ Again, the "Angular" in the name refers to it being a frontend to the CLI, not t
 
 In this post I showed you how to **create a new React workspace** using **Nx**. Then, we codified our library and component generation by using **workspace schematics**. Lastly, we saw how the **affected commands** can help our workspace remain optimized even as it continues to grow in size.
 
-The material covered in this post scratches only the surface of what Nx provides. If you're interested in learning more, please head to [our docs](https://nx.dev/)!
+Please check out the [working repo](https://github.com/nrwl/react-nx-example) if you want to play around with the examples in this post yourself.
+
+The material covered in this post scratches only the surface of what Nx provides. If you're interested in learning more, please head over to [our docs](https://nx.dev/)!
+
+Next steps for the workspace may include:
+
+* Bringing **other apps** into the workspace so they can easily share libraries (and be retested when needed).
+* Creating a workspace schematic to generate a **Redux modules** (generate actions, reducers, etc.).
+* Updating the component schematic to use a **CSS-in-JS** solution such as [styled-components](https://www.styled-components.com) or [emotion](https://emotion.sh).
+* Extend the built-in **webpack config** by providing `webpackConfig` option for `@nrwl/builders:web-build` and `@nrwl/builders:web-dev-server"` builders in `angular.json`.
+* ...
+
+I hope you find this post useful, and I'd love to hear some feedback if you decide to check out Nx!

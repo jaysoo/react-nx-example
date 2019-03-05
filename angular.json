@@ -22,6 +22,7 @@
             "main": "apps/react-example/src/main.tsx",
             "polyfills": "apps/react-example/src/polyfills.ts",
             "tsConfig": "apps/react-example/tsconfig.app.json",
+            "webpackConfig": "",
             "assets": [
               "apps/react-example/src/favicon.ico",
               "apps/react-example/src/assets"
